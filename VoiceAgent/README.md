@@ -6,7 +6,7 @@ A phone-callable voice AI agent that answers customer questions via Twilio Voice
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Telephony | Twilio Voice | Required by spec; free trial with verified-number calling |
+| Telephony | Twilio Voice | Free trial with verified-number calling |
 | Voice pipeline | Pipecat | Native Twilio Media Streams support; built-in VAD/interruption handling |
 | STT | Deepgram | Low-latency streaming STT with Pipecat integration |
 | LLM | Gemini, OpenAI, Groq fallback | Gemini is primary; OpenAI and Groq are fallback providers |
@@ -61,3 +61,10 @@ When the setup is correct and a verified phone calls the Twilio number:
 - Caller audio is streamed over WebSocket to the Pipecat pipeline
 - The agent retrieves relevant BrightBox knowledge-base chunks from ChromaDB
 - The LLM generates a response and Cartesia streams audio back to the caller
+
+## What I'd Change or Add for Production
+
+- Add a silence-timeout fallback so turn-detection never leaves a caller waiting
+- Deploy to a permanent URL (Railway/Render) instead of ngrok
+- Move off Twilio trial so any number can call in
+- Add conversation logging and a small eval suite for testing
