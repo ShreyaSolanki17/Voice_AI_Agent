@@ -38,6 +38,7 @@ class ServiceSwitcherStrategyOneWayFailover(ServiceSwitcherStrategyManual):
         current_idx = self.services.index(self.active_service)
         next_idx = current_idx + 1
         if next_idx >= len(self.services):
+            # We've run out of services in the fallback chain.
             logger.error("No fallback service available")
             return None
 
@@ -49,6 +50,7 @@ class LLMFailoverRetryProcessor(FrameProcessor):
 
     def __init__(self, retryable_llms: list[FrameProcessor]):
         super().__init__()
+        # We only want to retry if one of the initial LLMs fails, not the last one.
         self._retryable_llm_ids = {id(llm) for llm in retryable_llms}
         self._last_context_frame: LLMContextFrame | None = None
         self._retried_failures: set[tuple[int, int]] = set()
@@ -56,9 +58,11 @@ class LLMFailoverRetryProcessor(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
+        # Keep track of the last set of messages sent to the LLM.
         if isinstance(frame, LLMContextFrame) and direction == FrameDirection.DOWNSTREAM:
             self._last_context_frame = frame
 
+        # If we get an error from a retryable LLM, resubmit the last context.
         if (
             isinstance(frame, ErrorFrame)
             and direction == FrameDirection.UPSTREAM
@@ -67,8 +71,10 @@ class LLMFailoverRetryProcessor(FrameProcessor):
             and id(frame.processor) in self._retryable_llm_ids
             and self._last_context_frame
         ):
+            # Create a unique key for this specific failure to avoid infinite retry loops.
             context_id = id(self._last_context_frame.context)
             retry_key = (context_id, id(frame.processor))
+            # Only retry this specific failure once.
             if retry_key not in self._retried_failures:
                 self._retried_failures.add(retry_key)
                 logger.warning(
@@ -118,6 +124,7 @@ def create_llm_service() -> tuple[FrameProcessor, FrameProcessor | None]:
         )
 
     if provider == "auto":
+        # Create the fallback chain in order: Gemini -> OpenAI -> Groq
         llms = [llm for llm in [gemini_llm, openai_llm, groq_llm] if llm]
         if len(llms) > 1:
             logger.info(
@@ -128,6 +135,7 @@ def create_llm_service() -> tuple[FrameProcessor, FrameProcessor | None]:
                 llms=llms,
                 strategy_type=ServiceSwitcherStrategyOneWayFailover,
             )
+            # The retry processor should not try to failover from the *last* LLM.
             return llm, LLMFailoverRetryProcessor(retryable_llms=llms[:-1])
         if llms:
             return llms[0], None
@@ -187,12 +195,15 @@ async def run_bot(transport: FastAPIWebsocketTransport, stream_sid: str = ""):
         async def process_frame(self, frame, direction: FrameDirection):
             await super().process_frame(frame, direction)
             if isinstance(frame, TranscriptionFrame) and frame.text:
+                # On each user turn, retrieve relevant context from the knowledge base.
                 rag_ctx = await get_rag_context(frame.text)
                 msgs = self._llm_context.get_messages()
                 if rag_ctx:
+                    # If context is found, inject it into the system prompt.
                     msgs[0]["content"] = f"{SYSTEM_PROMPT}\n\nRetrieved KB context:\n{rag_ctx}"
                     logger.debug(f"RAG injected context for: {frame.text[:60]}")
                 else:
+                    # If no context is found, instruct the LLM to use its fallback response.
                     msgs[0]["content"] = (
                         f"{SYSTEM_PROMPT}\n\nRetrieved KB context:\n"
                         "No relevant knowledge base context was found for this question. "

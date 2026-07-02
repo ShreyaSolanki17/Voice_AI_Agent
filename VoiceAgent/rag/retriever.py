@@ -17,6 +17,7 @@ _collection = None
 
 
 def _get_collection():
+    """Initializes and caches a singleton ChromaDB client and collection."""
     global _client, _collection
     if _collection is None:
         _client = chromadb.PersistentClient(path=str(CHROMA_PATH))
@@ -37,11 +38,11 @@ def retrieve(query: str, k: int = 3) -> tuple[str, list[str], list[float]]:
     docs = results["documents"][0] if results["documents"] else []
     distances = results["distances"][0] if results["distances"] else []
 
-    # Convert cosine distance to similarity (lower distance = higher similarity)
-    # Chroma uses cosine distance by default: 0=identical, 2=opposite
+    # ChromaDB's cosine distance is 0 for identical, 1 for orthogonal, 2 for opposite.
+    # Convert to similarity score where 1 is identical and 0 is orthogonal.
     similarities = [1 - d for d in distances]
 
-    # Check if any chunk meets threshold
+    # Filter out chunks that don't meet the minimum similarity threshold.
     relevant = [d for d, s in zip(docs, similarities) if s >= SIMILARITY_THRESHOLD]
     scores = [s for s in similarities if s >= SIMILARITY_THRESHOLD]
 
