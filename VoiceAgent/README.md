@@ -9,7 +9,7 @@ A phone-callable voice AI agent that answers customer questions via Twilio Voice
 | Telephony | Twilio Voice | Required by spec; free trial with verified-number calling |
 | Voice pipeline | Pipecat | Native Twilio Media Streams support; built-in VAD/interruption handling |
 | STT | Deepgram | Low-latency streaming STT with Pipecat integration |
-| LLM | OpenAI (gpt-4o-mini) | Fast, cheap, good tool-calling for RAG |
+| LLM | Gemini, OpenAI, Groq fallback | Gemini is primary; OpenAI and Groq are fallback providers |
 | TTS | Cartesia | Low-latency streaming TTS, Pipecat-native |
 | Vector DB | ChromaDB (local) | Self-hosted, zero infrastructure, file-based persistence |
 | Server | FastAPI + uvicorn | Handles Twilio webhook + WebSocket media stream |
@@ -22,7 +22,7 @@ A phone-callable voice AI agent that answers customer questions via Twilio Voice
    pip install -r requirements.txt
    ```
 
-2. Copy `.env.example` to `.env` and fill in API keys
+2. Copy `.env.example` to `.env` and fill in API keys. For the chat LLM, set `LLM_PROVIDER=auto` to use the runtime fallback chain `Gemini -> OpenAI -> Groq`, skipping providers without keys. Set `LLM_PROVIDER=gemini`, `LLM_PROVIDER=openai`, or `LLM_PROVIDER=groq` to force one provider. Optional model overrides are `GEMINI_MODEL`, `OPENAI_MODEL`, and `GROQ_MODEL`.
 
 3. Ingest the knowledge base. This project now uses Gemini embeddings for RAG, so set `GEMINI_API_KEY` in `.env`:
    ```
