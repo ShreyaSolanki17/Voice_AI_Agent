@@ -1,5 +1,6 @@
 """FastAPI server for BrightBox voice agent."""
 
+import json
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -50,11 +51,22 @@ async def websocket_endpoint(websocket: WebSocket):
     stream_sid = websocket.query_params.get("StreamSid", "")
     call_sid = websocket.query_params.get("CallSid", "")
 
+    class DynamicTwilioFrameSerializer(TwilioFrameSerializer):
+        async def deserialize(self, data):
+            message = json.loads(data)
+            if message.get("event") == "start":
+                self._stream_sid = message.get("streamSid") or message.get("start", {}).get(
+                    "streamSid", self._stream_sid
+                )
+                logger.info(f"Twilio stream started: {self._stream_sid}")
+                return None
+            return await super().deserialize(data)
+
     account_sid = os.getenv("TWILIO_ACCOUNT_SID")
     auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 
     if account_sid and auth_token and call_sid:
-        serializer = TwilioFrameSerializer(
+        serializer = DynamicTwilioFrameSerializer(
             stream_sid=stream_sid,
             call_sid=call_sid,
             account_sid=account_sid,
@@ -62,7 +74,7 @@ async def websocket_endpoint(websocket: WebSocket):
         )
         logger.info("Twilio auto-hangup enabled")
     else:
-        serializer = TwilioFrameSerializer(
+        serializer = DynamicTwilioFrameSerializer(
             stream_sid=stream_sid,
             params=TwilioFrameSerializer.InputParams(auto_hang_up=False)
         )
