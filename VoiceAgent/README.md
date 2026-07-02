@@ -22,9 +22,11 @@ A phone-callable voice AI agent that answers customer questions via Twilio Voice
    pip install -r requirements.txt
    ```
 
-2. Copy `.env.example` to `.env` and fill in API keys. For the chat LLM, set `LLM_PROVIDER=auto` to use the runtime fallback chain `Gemini -> OpenAI -> Groq`, skipping providers without keys. Set `LLM_PROVIDER=gemini`, `LLM_PROVIDER=openai`, or `LLM_PROVIDER=groq` to force one provider. Optional model overrides are `GEMINI_MODEL`, `OPENAI_MODEL`, and `GROQ_MODEL`.
+2. Copy `.env.example` to `.env` and fill in API keys. 
+   The example file includes Twilio, ngrok, Deepgram, Cartesia, LLM provider, and Gemini embedding settings used by this project.
+   For the chat LLM, set `LLM_PROVIDER=auto` to use the fallback chain `Gemini -> OpenAI -> Groq`, or set it to a specific provider (`gemini`, `openai`, or `groq`) to force one model.
 
-3. Ingest the knowledge base. This project now uses Gemini embeddings for RAG, so set `GEMINI_API_KEY` in `.env`:
+3. Add BrightBox knowledge-base markdown files under `rag/kb/`, then ingest them. This project uses Gemini embeddings for RAG, so set `GEMINI_API_KEY` in `.env` before running:
    ```
    python -m rag.ingest
    ```
@@ -40,31 +42,22 @@ A phone-callable voice AI agent that answers customer questions via Twilio Voice
    - Set your Twilio phone number's voice webhook to `https://<ngrok>/incoming-call` (POST)
    - Add `+E164` number to verified callers list
 
-## Directory Structure
+## Twilio Trial Setup Notes
 
-```
-brightbox-voice-agent/
-├── bot.py           # Pipecat pipeline definition
-├── server.py        # FastAPI webhook + WebSocket endpoint
-├── rag/
-│   ├── ingest.py    # KB ingestion into ChromaDB
-│   ├── retriever.py # Query ChromaDB for relevant chunks
-│   └── kb/          # Markdown knowledge base documents
-├── prompts/         # System prompts
-└── templates/       # TwiML templates
-```
+If using a Twilio trial account:
+- Twilio provides a trial phone number
+- Calls to the Twilio number must be made from a verified phone number
+- Add your personal phone number under Twilio Verified Caller IDs before testing
+- Set the Twilio phone number Voice webhook to:
+  `https://<ngrok-domain>/incoming-call`
+- Use HTTP method `POST`
 
-## Known Limitations
+## End-to-End Call Flow
 
-- Simple cosine similarity threshold for fallback (tune as needed)
-- No auth on webhook endpoint (add for production)
-- Single-threaded calls (one customer at a time)
-- No call recording/analytics (add for production)
+When the setup is correct and a verified phone calls the Twilio number:
 
-## Production Improvements
-
-- Twilio `<Dial>` to real phone number for human handoff
-- Hosted vector DB (Pinecone/Weaviate) at scale
-- Call analytics/logging with structured metadata
-- Proper telephony error handling and retries
-- Streaming barge-in tuning for better interruption handling
+- Twilio sends a `POST /incoming-call` request to the FastAPI server
+- The server returns TwiML that connects the call to the `/ws` media stream
+- Caller audio is streamed over WebSocket to the Pipecat pipeline
+- The agent retrieves relevant BrightBox knowledge-base chunks from ChromaDB
+- The LLM generates a response and Cartesia streams audio back to the caller
