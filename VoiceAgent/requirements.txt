@@ -1,4 +1,4 @@
-pipecat-ai>=1.4.0
+pipecat-ai[cartesia,deepgram,openai,silero,websocket]==0.0.99
 fastapi>=0.110
 uvicorn>=0.30
 python-dotenv>=1.0
@@ -8,3 +8,4 @@ loguru>=0.7
 pydantic-settings>=2.2
 openai>=1.74.0
 google-genai>=1.0.0
+python-multipart==0.0.32
