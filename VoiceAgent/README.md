@@ -24,7 +24,7 @@ A phone-callable voice AI agent that answers customer questions via Twilio Voice
 
 2. Copy `.env.example` to `.env` and fill in API keys
 
-3. Ingest the knowledge base:
+3. Ingest the knowledge base. This project now uses Gemini embeddings for RAG, so set `GEMINI_API_KEY` in `.env`:
    ```
    python -m rag.ingest
    ```

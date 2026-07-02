@@ -3,13 +3,13 @@
 import os
 from pathlib import Path
 import chromadb
-from chromadb.utils import embedding_functions
 from loguru import logger
 from prompts.system_prompt import SIMILARITY_THRESHOLD
+from rag.gemini_embedder import embed_query
 
 
 CHROMA_PATH = Path(__file__).parent.parent / "chroma_db"
-COLLECTION_NAME = "brightbox_kb"
+COLLECTION_NAME = "brightbox_kb_gemini"
 
 
 _client = None
@@ -19,24 +19,17 @@ _collection = None
 def _get_collection():
     global _client, _collection
     if _collection is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        embed_fn = embedding_functions.OpenAIEmbeddingFunction(
-            api_key=api_key,
-            model_name="text-embedding-3-small"
-        )
         _client = chromadb.PersistentClient(path=str(CHROMA_PATH))
-        _collection = _client.get_collection(
-            name=COLLECTION_NAME,
-            embedding_function=embed_fn
-        )
+        _collection = _client.get_or_create_collection(name=COLLECTION_NAME)
     return _collection
 
 
 def retrieve(query: str, k: int = 3) -> tuple[str, list[str], list[float]]:
     """Embed query and retrieve top-k chunks + scores."""
     collection = _get_collection()
+    query_embedding = embed_query(query)
     results = collection.query(
-        query_texts=[query],
+        query_embeddings=[query_embedding],
         n_results=k,
         include=["documents", "distances"]
     )

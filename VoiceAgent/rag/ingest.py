@@ -3,15 +3,15 @@
 import os
 from pathlib import Path
 import chromadb
-from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 from loguru import logger
+from rag.gemini_embedder import embed_documents
 
 load_dotenv()
 
 KB_DIR = Path(__file__).parent / "kb"
 CHROMA_PATH = Path(__file__).parent.parent / "chroma_db"
-COLLECTION_NAME = "brightbox_kb"
+COLLECTION_NAME = "brightbox_kb_gemini"
 
 
 def chunk_text(text: str, max_tokens: int = 200) -> list[str]:
@@ -33,21 +33,13 @@ def chunk_text(text: str, max_tokens: int = 200) -> list[str]:
 
 
 def main():
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        logger.error("OPENAI_API_KEY required for embeddings")
+        logger.error("GEMINI_API_KEY required for embeddings")
         return
 
-    embed_fn = embedding_functions.OpenAIEmbeddingFunction(
-        api_key=api_key,
-        model_name="text-embedding-3-small"
-    )
-
     client = chromadb.PersistentClient(path=str(CHROMA_PATH))
-    collection = client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        embedding_function=embed_fn
-    )
+    collection = client.get_or_create_collection(name=COLLECTION_NAME)
 
     all_ids = []
     all_chunks = []
@@ -65,7 +57,13 @@ def main():
             logger.info(f"Ingested chunk {chunk_id} from {kb_file.name}")
 
     if all_ids:
-        collection.upsert(ids=all_ids, documents=all_chunks, metadatas=all_metadatas)
+        embeddings = embed_documents(all_chunks)
+        collection.upsert(
+            ids=all_ids,
+            documents=all_chunks,
+            embeddings=embeddings,
+            metadatas=all_metadatas,
+        )
         logger.success(f"Ingested {len(all_ids)} chunks into {COLLECTION_NAME}")
 
 

@@ -1,0 +1,7 @@
+.env
+VoiceAgent/.env
+VoiceAgent/.venv/
+VoiceAgent/__pycache__/
+VoiceAgent/.pytest_cache/
+VoiceAgent/*.pyc
+VoiceAgent/*.pyo

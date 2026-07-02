@@ -1,4 +1,4 @@
-pipecat-ai[silero,openai,deepgram,cartesia,twilio]>=0.0.8
+pipecat-ai>=1.4.0
 fastapi>=0.110
 uvicorn>=0.30
 python-dotenv>=1.0
@@ -6,3 +6,5 @@ twilio>=9.0
 chromadb>=0.5
 loguru>=0.7
 pydantic-settings>=2.2
+openai>=1.74.0
+google-genai>=1.0.0
