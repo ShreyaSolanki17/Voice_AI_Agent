@@ -1,0 +1,8 @@
+pipecat-ai[silero,openai,deepgram,cartesia,twilio]>=0.0.8
+fastapi>=0.110
+uvicorn>=0.30
+python-dotenv>=1.0
+twilio>=9.0
+chromadb>=0.5
+loguru>=0.7
+pydantic-settings>=2.2
